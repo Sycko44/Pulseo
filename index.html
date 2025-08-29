@@ -3,187 +3,48 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Pulseo — PWA complète</title>
-  <meta name="description" content="Pulseo — PWA complète (offline, mémoire locale, i18n).">
+  <title>Pulseo — PWA (hotfix)</title>
   <meta name="robots" content="noindex,nofollow">
   <link rel="manifest" href="manifest.webmanifest">
   <meta name="theme-color" content="#5b6bff">
   <link rel="icon" href="icon-192.png">
   <link rel="stylesheet" href="styles.css">
+  <style>.hidden{display:none}</style>
   <script defer src="i18n.js"></script>
   <script defer src="db.js"></script>
   <script defer src="app.js"></script>
 </head>
 <body>
-  <a class="skip" href="#main">Aller au contenu</a>
-  <header class="topbar" role="banner">
-    <div class="logo-sm" aria-hidden="true"></div>
-    <strong>Pulseo</strong>
-    <div class="spacer"></div>
-    <span id="net" class="net online" aria-live="polite">● en ligne</span>
-  </header>
-
-  <main id="main" tabindex="-1" role="main">
-    <section class="splash" aria-label="Écran d’accueil">
-      <div class="logo-pulse" aria-hidden="true"></div>
+  <main id="main">
+    <!-- Vue accueil -->
+    <section class="splash" data-view="splash">
       <h1 data-i18n="title">Ton coach au rythme de ta vitalité</h1>
-      <p class="tagline" data-i18n="subtitle">PWA complète (offline, mémoire locale). Conforme CNIL (local-first, opt-in).</p>
+      <p class="tagline" data-i18n="subtitle">PWA complète, offline & mémoire locale.</p>
       <button id="start" data-i18n="start">Commencer</button>
     </section>
 
-    <section class="consent panel hidden" aria-labelledby="consent-title">
-      <h2 id="consent-title" data-i18n="privacy_title">Confidentialité & Options</h2>
+    <!-- Vue consentement -->
+    <section class="consent panel hidden" data-view="consent">
+      <h2 data-i18n="privacy_title">Confidentialité & Options</h2>
       <p class="muted" data-i18n="privacy_desc">Tout est local-first. Active seulement ce que tu souhaites.</p>
-
-      <div class="row">
-        <div>
-          <strong>Capteurs &amp; sons immersifs</strong>
-          <div class="muted">Web (ici) : <em>Partiel</em> — ambiances ponctuelles, capteurs limités.</div>
-          <div class="muted">App Android : <em>Complet</em> — voix temps réel, gyro avancé, wearables.</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="optImmersif" aria-label="Activer capteurs et sons immersifs (optionnel)">
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="row">
-        <div>
-          <strong>Mémoire avancée (Historien)</strong>
-          <div class="muted">Web (ici) : <em>Partiel</em> — récap hebdo court (IndexedDB).</div>
-          <div class="muted">App Android : <em>Complet</em> — mémoire longue, consolidation locale.</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="optMemoire" aria-label="Activer mémoire avancée (optionnel)">
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="row">
-        <div>
-          <strong>Notifications (Web Push)</strong>
-          <div class="muted">Support variable selon navigateur/OS. Nécessite clés VAPID serveur.</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="optPush" aria-label="Activer notifications (si supportées)">
-          <span class="slider"></span>
-        </label>
-      </div>
-
-      <div class="row">
-        <div>
-          <strong>Sync en arrière-plan</strong>
-          <div class="muted">Utilise Background Sync si disponible, sinon file d’attente locale.</div>
-        </div>
-        <label class="switch">
-          <input type="checkbox" id="optSync" aria-label="Activer background sync (si supporté)">
-          <span class="slider"></span>
-        </label>
-      </div>
-
       <button id="continue" data-i18n="continue">Continuer</button>
     </section>
 
-    <section class="chat hidden panel" aria-labelledby="chat-title">
+    <!-- Vue chat -->
+    <section class="chat hidden panel" data-view="chat">
       <header class="chat-header">
-        <h2 id="chat-title" data-i18n="chat_title">Discussion</h2>
-        <div class="spacer"></div>
-        <button id="openSettings" aria-haspopup="dialog" aria-controls="settings">⚙️</button>
+        <h2 data-i18n="chat_title">Discussion</h2>
       </header>
 
       <div class="messages" id="messages" role="log" aria-live="polite"></div>
 
-      <form class="composer" onsubmit="return false" aria-label="Composer un message">
+      <!-- ✅ Pas de <form> => aucun submit possible -->
+      <div id="composer" class="composer" role="form" aria-label="Composer un message">
         <label for="input" class="sr-only" data-i18n="msg_label">Message</label>
-        <input id="input" placeholder="Écrire un message…" autocomplete="off">
-        <button id="send" aria-label="Envoyer le message" data-i18n="send">Envoyer</button>
-      </form>
+        <input id="input" placeholder="Écrire un message…" autocomplete="off" />
+        <button id="send" type="button" aria-label="Envoyer" data-i18n="send">Envoyer</button>
+      </div>
     </section>
-
-    <section class="settings hidden panel" id="settings" role="dialog" aria-labelledby="settings-title" aria-modal="true">
-      <h3 id="settings-title" data-i18n="settings">Réglages</h3>
-
-      <div class="setting">
-        <div class="row">
-          <div><strong>PulseMind (détection texte)</strong></div>
-          <label><input type="checkbox" checked aria-label="Activer PulseMind"> Activé</label>
-        </div>
-        <div class="muted">Web (ici) : <em>Complet</em> — tonalité & intensité. · App Android : <em>Complet</em></div>
-      </div>
-
-      <div class="setting">
-        <div class="row">
-          <div><strong>Vie privée contextuelle</strong></div>
-          <label><input type="checkbox" checked aria-label="Activer vie privée contextuelle"> Activé</label>
-        </div>
-        <div class="muted">Web (ici) : <em>Basique</em> — sans écoute de fond. · App Android : <em>Étendu</em></div>
-      </div>
-
-      <div class="setting disabled" title="Nécessite l’app Android pour l’accès matériel et l’audio de fond.">
-        <div class="row">
-          <div><strong>LuxenX — Capteurs étendus</strong><span class="badge">Limité sur Web</span></div>
-          <label><input type="checkbox" disabled aria-label="LuxenX indisponible sur Web"> —</label>
-        </div>
-        <div class="muted">Web (ici) : <em>Partiel</em> — micro au clic, capteurs limités, sans wearables.</div>
-        <div class="muted">App Android : <em>Complet</em> — voix temps réel, gyro/accéléro, wearables.</div>
-      </div>
-
-      <div class="setting disabled" title="Nécessite l’app Android pour l’audio de fond et le GPU natif.">
-        <div class="row">
-          <div><strong>Flow — Immersion avancée</strong><span class="badge">Limité sur Web</span></div>
-          <label><input type="checkbox" disabled aria-label="Flow indisponible sur Web"> —</label>
-        </div>
-        <div class="muted">Web (ici) : <em>Partiel</em> — ambiances ponctuelles.</div>
-        <div class="muted">App Android : <em>Complet</em> — musiques/sons persistants.</div>
-      </div>
-
-      <div class="setting">
-        <div class="row">
-          <div><strong>Historien — Mémoire</strong><span class="badge">IndexedDB</span></div>
-          <label><input type="checkbox" id="historienLite" aria-label="Activer Historien (mode local)"> Activer (mode local)</label>
-        </div>
-        <div class="muted">Web (ici) : <em>Partiel</em> — récap hebdo court (local).</div>
-      </div>
-
-      <div class="setting">
-        <div class="row">
-          <div><strong>Notifications Web</strong></div>
-          <label><input type="checkbox" id="pushToggle" aria-label="Activer les notifications web"> Activer</label>
-        </div>
-        <div class="muted">Support variable, nécessite serveur (VAPID). Ce build démo gère la demande de permission.</div>
-      </div>
-
-      <p class="kicker"><a href="#" id="exportRecap">Exporter mon récap hebdo</a></p>
-      <p><button id="closeSettings" aria-label="Fermer les réglages">Fermer</button></p>
-    </section>
-
-    <footer class="footer" role="contentinfo">
-      <a href="#" id="openPrivacy">Confidentialité</a>
-    </footer>
-
-    <dialog id="privacy" aria-labelledby="privacy-title">
-      <h3 id="privacy-title">Confidentialité</h3>
-      <p>Pulseo traite vos données <strong>localement</strong>. Aucun envoi vers un serveur par défaut.</p>
-      <p>Les capteurs/sons sont désactivés sauf consentement explicite.</p>
-      <p><button id="closePrivacy">Fermer</button></p>
-    </dialog>
   </main>
-
-  <script>
-    window.addEventListener('DOMContentLoaded', () => {
-      const lang = (navigator.language || 'fr').startsWith('fr') ? 'fr' : 'en';
-      applyI18n(lang);
-    });
-    function updateNet(){
-      const el = document.getElementById('net');
-      if(!el) return;
-      const on = navigator.onLine;
-      el.textContent = on ? '● en ligne' : '● hors ligne';
-      el.className = 'net ' + (on ? 'online' : 'offline');
-    }
-    window.addEventListener('online', updateNet);
-    window.addEventListener('offline', updateNet);
-    updateNet();
-  </script>
 </body>
 </html>
