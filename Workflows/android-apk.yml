@@ -1,0 +1,57 @@
+name: Android APK (Pulseo AutoBootstrap)
+on:
+  workflow_dispatch:
+  push:
+    branches: [ pulseo-monolith ]
+env:
+  MOBILE_DIR: apps/mobile
+jobs:
+  build-apk:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with: { distribution: temurin, java-version: '17', cache: gradle }
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: npm }
+      - uses: android-actions/setup-android@v3
+      - uses: pnpm/action-setup@v3
+        with: { version: 9, run_install: false }
+      - name: Bootstrap Capacitor si manquant
+        run: |
+          set -euxo pipefail
+          if [ ! -f "${MOBILE_DIR}/android/gradlew" ]; then
+            npm init @capacitor/app@latest tmp-app -- --name "Pulseo" --app-id "io.pulseo.app" --template vanilla
+            mkdir -p apps && mv tmp-app "${MOBILE_DIR}"
+            (cd "${MOBILE_DIR}" && npm i && npx cap add android)
+          fi
+      - name: Install deps
+        run: |
+          set -euxo pipefail
+          if [ -f package.json ]; then (pnpm i || npm i); fi
+          if [ -f "${MOBILE_DIR}/package.json" ]; then (pnpm -C "${MOBILE_DIR}" i || npm --prefix "${MOBILE_DIR}" i); fi
+      - name: Keystore (si secrets fournis)
+        env:
+          ANDROID_KEYSTORE_BASE64: ${{ secrets.ANDROID_KEYSTORE_BASE64 }}
+          ANDROID_KEYSTORE_PASSWORD: ${{ secrets.ANDROID_KEYSTORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          bash scripts/decode-keystore.sh || true
+      - name: Build web + sync
+        run: |
+          set -euxo pipefail
+          if [ -f "${MOBILE_DIR}/package.json" ]; then (pnpm -C "${MOBILE_DIR}" build || npm --prefix "${MOBILE_DIR}" run build || true); fi
+          npx cap sync android --root "${MOBILE_DIR}" || true
+      - name: Assemble APK (release→debug)
+        run: |
+          set -euxo pipefail
+          cd "${MOBILE_DIR}/android"
+          ./gradlew assembleRelease --stacktrace || ./gradlew assembleDebug --stacktrace
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Pulseo-APK
+          path: |
+            ${MOBILE_DIR}/android/app/build/outputs/apk/release/*.apk
+            ${MOBILE_DIR}/android/app/build/outputs/apk/debug/*.apk
