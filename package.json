@@ -1,7 +1,0 @@
-{
-  "name": "pulseo-correctif",
-  "private": true,
-  "scripts": {
-    "vercel-build": "node check.js"
-  }
-}
