@@ -1,0 +1,6 @@
+{
+  "refresh.intervals": { "fast": 1000, "medium": 3000, "slow": 10000 },
+  "battery.thresholds": { "low": 30, "critical": 15 },
+  "telemetry": { "batchMs": 900000, "flushOnSOS": true },
+  "learning": { "errRaiseFactor": 0.5, "errDecay": 0.25 }
+}
