@@ -42,3 +42,9 @@ jobs:
         with:
           name: app-prod-release
           path: android/app/build/outputs/bundle/prodRelease/*.aab
+
+- name: Setup Java 11 & Android SDK
+  uses: actions/setup-java@v4
+  with:
+    distribution: temurin
+    java-version: '11'
