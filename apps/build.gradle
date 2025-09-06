@@ -1,0 +1,7 @@
+android {
+  // …
+  flavorDimensions += "tier"
+  productFlavors {
+    create("prod") { dimension = "tier" }
+  }
+}
