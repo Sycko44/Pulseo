@@ -1,0 +1,31 @@
+"use client";
+import { useEffect, useState } from "react";
+
+type Pred = { user:{sos:number; ritual:number; idle:number}; risk:{bug:number; perf:number}; actions:string[]; ts:number };
+
+export default function SimPage(){
+  const [pred, setPred] = useState<Pred|null>(null);
+  useEffect(()=>{
+    const t = setInterval(()=>{
+      try{
+        const raw = localStorage.getItem("meta:pred");
+        if(raw){ setPred(JSON.parse(raw)); }
+      }catch{}
+    }, 1000);
+    return ()=>clearInterval(t);
+  },[]);
+  return (
+    <main style={{padding:16,fontFamily:"Inter,ui-sans-serif"}}>
+      <h1>SpiraCore v2 — Auto-Simulation</h1>
+      {!pred ? <p>En attente de premières prédictions…</p> :
+      <div style={{display:"grid",gap:8,maxWidth:520}}>
+        <div><b>User</b> — SOS {(pred.user.sos*100).toFixed(1)}% · Ritual {(pred.user.ritual*100).toFixed(1)}% · Idle {(pred.user.idle*100).toFixed(1)}%</div>
+        <div><b>Risques</b> — Bug {(pred.risk.bug*100).toFixed(1)}% · Perf {(pred.risk.perf*100).toFixed(1)}%</div>
+        <div><b>Actions</b> — {pred.actions.join(", ") || "—"}</div>
+        <div style={{opacity:0.6}}>ts: {new Date(pred.ts).toLocaleTimeString()}</div>
+      </div>}
+      <hr style={{margin:"16px 0"}}/>
+      <p>Les prédictions alimentent la policy (policy.*) pour agir avant l’apparition du problème.</p>
+    </main>
+  );
+}

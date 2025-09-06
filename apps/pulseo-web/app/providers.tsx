@@ -1,13 +1,22 @@
 "use client";
 import { useEffect } from "react";
-// Remplace ces imports par tes chemins réels si différents
-// @ts-ignore
-import { AutoCoreProvider, useAutoCore } from "@pulseo/auto-core";
+import { makeCompat } from "@spiratech/spira-core-compat";
 import { MetaLoop, makeLocalCtx } from "@spiratech/meta-core/metaLoop";
 import { SkillBatteryGuard, SkillAutoFix, SkillTelemetryBoost } from "@spiratech/meta-core/skills";
+import { startAutoSimulation } from "@spiratech/meta-core/sim";
+// @ts-ignore: si ancien AutoCore existe encore, on s’adapte
+let Core:any;try{Core=require("@pulseo/auto-core");}catch{Core={AutoCoreProvider:({children}:any)=>children,useAutoCore:()=>({subscribe:()=>()=>{},actions:new Map()})};}
+const { AutoCoreProvider, useAutoCore } = Core;
 
+export default function Providers({ children }: { children: React.ReactNode }) {
+  const AC:any = AutoCoreProvider ?? ((p:any)=>p.children);
+  return <AC><MetaBridge/>{children}</AC>;
+}
 function MetaBridge(){
-  const core = useAutoCore?.() ?? { subscribe:()=>{}, actions:new Map() };
+  // Choix runtime SpiraCore v2 + compat
+  const compat = makeCompat();
+  const core = (typeof useAutoCore==="function") ? useAutoCore() : compat;
+
   useEffect(()=>{
     const ctx = makeLocalCtx();
     const meta = new MetaLoop(ctx);
@@ -15,38 +24,27 @@ function MetaBridge(){
     meta.registerSkill(SkillAutoFix);
     meta.registerSkill(SkillTelemetryBoost);
 
-    const un = core?.subscribe?.((evt:any)=> ctx.emit({ ts:Date.now(), type:evt.type, payload:evt.payload, source:"autocore" }));
+    // pont événements → MetaLoop + simulateur
+    const un = core?.subscribe?.((evt:any)=>{ ctx.emit({ ts:Date.now(), type:evt.type, payload:evt.payload, source:"core" });
+      try{ /* @ts-ignore */ globalThis.__metaSimIngest?.({ ts:Date.now(), type:evt.type }); }catch{} });
 
-    // Battery (Android)
+    // Sondes Android (batterie/réseau)
     // @ts-ignore
-    navigator.getBattery?.().then((b:any)=>{
-      const send=()=>ctx.emit({ ts:Date.now(), type:"battery:update", payload:{ level:Math.round(b.level*100) }});
-      b.addEventListener("levelchange",send); b.addEventListener("chargingchange",send); send();
-    });
-
-    // Network
+    navigator.getBattery?.().then((b:any)=>{ const send=()=>{const level=Math.round(b.level*100);
+      ctx.emit({ ts:Date.now(), type:"battery:update", payload:{ level }});
+      try{ /* @ts-ignore */ globalThis.__metaSimIngest?.({ ts:Date.now(), type:"battery:update" }); }catch{} };
+      b.addEventListener("levelchange",send); b.addEventListener("chargingchange",send); send(); });
     // @ts-ignore
-    const n = navigator.connection;
-    if(n){ const send=()=>ctx.emit({ ts:Date.now(), type:"network:update", payload:{ type:n.effectiveType, downlink:n.downlink }});
-      n.addEventListener("change", send); send(); }
+    const n:any=navigator.connection; if(n){ const send=()=>{ ctx.emit({ ts:Date.now(), type:"network:update", payload:{ type:n.effectiveType, downlink:n.downlink }});
+      try{ /* @ts-ignore */ globalThis.__metaSimIngest?.({ ts:Date.now(), type:"network:update" }); }catch{} }; n.addEventListener("change",send); send(); }
 
+    startAutoSimulation(ctx, { periodMs: ctx.policy.get("simulation.periodMs", 5000) });
     meta.start(1000);
-    const i=setInterval(()=>{
-      if(ctx.policy.get("telemetry.flushNow",false)){ core?.actions?.get?.("telemetry.flush")?.(); ctx.policy.set("telemetry.flushNow", false); }
-      document.documentElement.dataset.visuals = ctx.policy.get("visuals","on");
-      document.documentElement.dataset.mediaQuality = ctx.policy.get("mediaQuality","high");
-      document.documentElement.dataset.refreshFactor = String(ctx.policy.get("refreshFactor",1));
-    },1000);
 
-    // @ts-ignore
-    window.__metaLoop = meta;
-    return ()=>{ clearInterval(i); un?.(); meta.stop(); };
+    // action de flush (SpiraCore/compat)
+    core?.actions?.set?.("telemetry.flush", async()=>{ /* place ton flush réel ici */ });
+
+    return ()=>{ try{ /* @ts-ignore */ globalThis.__metaSimStop?.(); }catch{}; un?.(); meta.stop(); };
   },[]);
   return null;
-}
-
-export default function Providers({ children }: { children: React.ReactNode }) {
-  // Si pas d'AutoCoreProvider dispo, on renvoie juste children + bridge
-  const AC:any = AutoCoreProvider ?? ((p:any)=>p.children);
-  return <AC><MetaBridge/>{children}</AC>;
 }

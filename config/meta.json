@@ -1,6 +1,52 @@
 {
-  "refresh.intervals": { "fast": 1000, "medium": 3000, "slow": 10000 },
-  "battery.thresholds": { "low": 30, "critical": 15 },
-  "telemetry": { "batchMs": 900000, "flushOnSOS": true },
-  "learning": { "errRaiseFactor": 0.5, "errDecay": 0.25 }
+  "refresh.intervals": {
+    "fast": 1000,
+    "medium": 3000,
+    "slow": 10000
+  },
+  "battery.thresholds": {
+    "low": 30,
+    "critical": 15
+  },
+  "telemetry": {
+    "batchMs": 900000,
+    "flushOnSOS": true
+  },
+  "learning": {
+    "errRaiseFactor": 0.5,
+    "errDecay": 0.25
+  },
+  "directives": [
+    {
+      "id": "20250906-184758",
+      "path": "config/directives/20250906-184758.txt",
+      "ts": 1757177278
+    },
+    {
+      "id": "20250906-185126",
+      "path": "config/directives/20250906-185126.txt",
+      "ts": 1757177486
+    },
+    {
+      "id": "20250906-185153",
+      "path": "config/directives/20250906-185153.txt",
+      "ts": 1757177513
+    },
+    {
+      "id": "20250906-185303",
+      "path": "config/directives/20250906-185303.txt",
+      "ts": 1757177583
+    }
+  ],
+  "policy": {
+    "visuals": "dimmed",
+    "telemetry.flushOnSOS": true,
+    "telemetry.flushNow": true,
+    "errors.runtime.rate5m_threshold": 2,
+    "refreshFactor": 1.25
+  },
+  "simulation": {
+    "enabled": true,
+    "periodMs": 5000
+  }
 }

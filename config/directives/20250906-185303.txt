@@ -1,0 +1,1 @@
+Priorité absolue: stabilité > performances; visuals=dimmed si erreurs runtime > 2/5min; flushNow sur SOS
