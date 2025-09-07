@@ -1,3 +1,0 @@
-{ "name":"Pulseo","short_name":"Pulseo","start_url":"/","display":"standalone",
-  "background_color":"#000000","theme_color":"#101010",
-  "icons":[{"src":"/icon-192.png","sizes":"192x192","type":"image/png"}] }
