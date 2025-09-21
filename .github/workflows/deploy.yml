@@ -31,16 +31,33 @@ jobs:
           ssh -o StrictHostKeyChecking=no $USER@$HOST '
             set -e
             APP=pulseo; DIR='"${{ secrets.OVH_PATH }}"'; PORT=3000
+            sudo apt-get update -y >/dev/null 2>&1 || true
+            command -v pm2 >/dev/null 2>&1 || sudo npm i -g pm2
+            sudo mkdir -p "$DIR/releases" "$DIR/current"
+            sudo chown -R '"${{ secrets.OVH_USER }}"':'"${{ secrets.OVH_USER }}"' "$DIR"
             cd "$DIR/releases" && LAST=$(ls -1 | sort -r | head -n1)
             cd "$DIR/releases/$LAST"
             tar -xzf artefact.tgz
             ln -sfn "$DIR/releases/$LAST" "$DIR/current"
-            if command -v pm2 >/dev/null 2>&1; then
-              cd "$DIR/current"
-              pm2 startOrReload ecosystem.config.js || pm2 start node_modules/next/dist/bin/next --name "$APP" -- start -p "$PORT"
-              pm2 save || true
-            else
-              sudo systemctl restart pulseo || true
+            cd "$DIR/current"
+            pm2 startOrReload ecosystem.config.js || pm2 start node_modules/next/dist/bin/next --name "$APP" -- start -p "$PORT"
+            pm2 save || true
+            # Nginx proxy minimal si besoin
+            if [ ! -f /etc/nginx/sites-available/pulseo ]; then
+              sudo tee /etc/nginx/sites-available/pulseo >/dev/null <<CONF
+server {
+  listen 80;
+  server_name _;
+  location / {
+    proxy_pass http://127.0.0.1:3000;
+    proxy_set_header Host \$host;
+    proxy_set_header X-Forwarded-For \$remote_addr;
+    proxy_set_header X-Forwarded-Proto \$scheme;
+  }
+}
+CONF
+              sudo ln -sf /etc/nginx/sites-available/pulseo /etc/nginx/sites-enabled/pulseo
+              sudo rm -f /etc/nginx/sites-enabled/default || true
             fi
             sudo nginx -t && sudo systemctl reload nginx || true
           '
