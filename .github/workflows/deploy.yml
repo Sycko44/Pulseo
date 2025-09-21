@@ -1,0 +1,49 @@
+name: Deploy Pulseo to OVH
+on:
+  push: { branches: [ "main" ] }
+  workflow_dispatch:
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: '20', cache: 'npm' }
+      - name: Install & Build
+        run: |
+          npm ci
+          npm run build
+          tar -czf artefact.tgz .next public package.json package-lock.json ecosystem.config.js
+      - name: Load SSH key
+        uses: webfactory/ssh-agent@v0.8.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Ship artefact to VPS
+        env: { HOST: ${{ secrets.OVH_HOST }}, USER: ${{ secrets.OVH_USER }}, PATH_DIR: ${{ secrets.OVH_PATH }} }
+        run: |
+          set -e
+          TS=$(date +%Y%m%d%H%M%S)
+          ssh -o StrictHostKeyChecking=no $USER@$HOST "mkdir -p $PATH_DIR/releases/$TS"
+          scp -o StrictHostKeyChecking=no artefact.tgz $USER@$HOST:$PATH_DIR/releases/$TS/artefact.tgz
+      - name: Deploy & restart on VPS
+        env: { HOST: ${{ secrets.OVH_HOST }}, USER: ${{ secrets.OVH_USER }}, PATH_DIR: ${{ secrets.OVH_PATH }} }
+        run: |
+          ssh -o StrictHostKeyChecking=no $USER@$HOST '
+            set -e
+            APP=pulseo; DIR='"${{ secrets.OVH_PATH }}"'; PORT=3000
+            cd "$DIR/releases" && LAST=$(ls -1 | sort -r | head -n1)
+            cd "$DIR/releases/$LAST"
+            tar -xzf artefact.tgz
+            ln -sfn "$DIR/releases/$LAST" "$DIR/current"
+            if command -v pm2 >/dev/null 2>&1; then
+              cd "$DIR/current"
+              pm2 startOrReload ecosystem.config.js || pm2 start node_modules/next/dist/bin/next --name "$APP" -- start -p "$PORT"
+              pm2 save || true
+            else
+              sudo systemctl restart pulseo || true
+            fi
+            sudo nginx -t && sudo systemctl reload nginx || true
+          '
+      - name: Healthcheck public
+        env: { HOST: ${{ secrets.OVH_HOST }} }
+        run: curl -fsSI http://$HOST/ | head -n1
