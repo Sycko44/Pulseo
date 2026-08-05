@@ -1,0 +1,41 @@
+# Secrets
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+vault-token
+.vault-token
+
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+
+# Node
+node_modules/
+.next/
+dist/
+build/
+
+# Runtime data
+logs/
+*.log
+run/
+tmp/
+cache/
+data/
+models/
+releases/
+current
+
+# Editors and OS
+.vscode/
+.idea/
+.DS_Store
