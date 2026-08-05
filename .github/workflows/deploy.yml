@@ -1,66 +1,39 @@
-name: Deploy Pulseo to OVH
+name: Pulseo deployment safety gate
+
 on:
-  push: { branches: [ "main" ] }
   workflow_dispatch:
+    inputs:
+      confirmation:
+        description: "Type AUDIT_ONLY to run the safety gate"
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
 jobs:
-  deploy:
+  safety-gate:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
-        with: { node-version: '20', cache: 'npm' }
-      - name: Install & Build
+      - name: Confirm audit-only mode
+        env:
+          CONFIRMATION: ${{ inputs.confirmation }}
         run: |
-          npm ci
-          npm run build
-          tar -czf artefact.tgz .next public package.json package-lock.json ecosystem.config.js
-      - name: Load SSH key
-        uses: webfactory/ssh-agent@v0.8.0
-        with:
-          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-      - name: Ship artefact to VPS
-        env: { HOST: ${{ secrets.OVH_HOST }}, USER: ${{ secrets.OVH_USER }}, PATH_DIR: ${{ secrets.OVH_PATH }} }
+          set -eu
+          test "$CONFIRMATION" = "AUDIT_ONLY"
+          echo "Deployment is intentionally locked."
+          echo "Required before activation: canonical VPS import, Vault verification, sandbox redeploy, health check and rollback proof."
+
+      - name: Verify repository contains no obvious secret files
+        uses: actions/checkout@v4
+
+      - name: Run repository safety checks
         run: |
-          set -e
-          TS=$(date +%Y%m%d%H%M%S)
-          ssh -o StrictHostKeyChecking=no $USER@$HOST "mkdir -p $PATH_DIR/releases/$TS"
-          scp -o StrictHostKeyChecking=no artefact.tgz $USER@$HOST:$PATH_DIR/releases/$TS/artefact.tgz
-      - name: Deploy & restart on VPS
-        env: { HOST: ${{ secrets.OVH_HOST }}, USER: ${{ secrets.OVH_USER }}, PATH_DIR: ${{ secrets.OVH_PATH }} }
-        run: |
-          ssh -o StrictHostKeyChecking=no $USER@$HOST '
-            set -e
-            APP=pulseo; DIR='"${{ secrets.OVH_PATH }}"'; PORT=3000
-            sudo apt-get update -y >/dev/null 2>&1 || true
-            command -v pm2 >/dev/null 2>&1 || sudo npm i -g pm2
-            sudo mkdir -p "$DIR/releases" "$DIR/current"
-            sudo chown -R '"${{ secrets.OVH_USER }}"':'"${{ secrets.OVH_USER }}"' "$DIR"
-            cd "$DIR/releases" && LAST=$(ls -1 | sort -r | head -n1)
-            cd "$DIR/releases/$LAST"
-            tar -xzf artefact.tgz
-            ln -sfn "$DIR/releases/$LAST" "$DIR/current"
-            cd "$DIR/current"
-            pm2 startOrReload ecosystem.config.js || pm2 start node_modules/next/dist/bin/next --name "$APP" -- start -p "$PORT"
-            pm2 save || true
-            # Nginx proxy minimal si besoin
-            if [ ! -f /etc/nginx/sites-available/pulseo ]; then
-              sudo tee /etc/nginx/sites-available/pulseo >/dev/null <<CONF
-server {
-  listen 80;
-  server_name _;
-  location / {
-    proxy_pass http://127.0.0.1:3000;
-    proxy_set_header Host \$host;
-    proxy_set_header X-Forwarded-For \$remote_addr;
-    proxy_set_header X-Forwarded-Proto \$scheme;
-  }
-}
-CONF
-              sudo ln -sf /etc/nginx/sites-available/pulseo /etc/nginx/sites-enabled/pulseo
-              sudo rm -f /etc/nginx/sites-enabled/default || true
-            fi
-            sudo nginx -t && sudo systemctl reload nginx || true
-          '
-      - name: Healthcheck public
-        env: { HOST: ${{ secrets.OVH_HOST }} }
-        run: curl -fsSI http://$HOST/ | head -n1
+          set -eu
+          forbidden=$(find . -type f \( -name '.env' -o -name '*.pem' -o -name '*.key' -o -name 'id_rsa' \) -not -path './.git/*' -print)
+          if [ -n "$forbidden" ]; then
+            echo "Forbidden secret-like files detected:"
+            echo "$forbidden"
+            exit 1
+          fi
+          echo "Safety gate passed. No deployment was performed."
